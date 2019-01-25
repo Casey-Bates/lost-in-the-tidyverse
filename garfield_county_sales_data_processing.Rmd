@@ -1,0 +1,110 @@
+---
+title: "Garfield County Sales Data Processing"
+author: "Casey Bates"
+date: "1/24/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Motivation
+Somebody you know is starting a home inspection business in Garfield County, Colorado. You would like to help them launch their business by providing some insights about the real estate market in the county. A dataset is publically available on the county assessor website that contains 2 years of data from summer 2014 through summer 2016.
+```{r data_processing, message=FALSE, include=FALSE}
+# This chunk includes the data processing steps to wrangle and clean the data
+library(tidyverse) # For reading-in, wrangling, visualizing the data, and for pipe operator
+library(readxl) # Tidyverse package for reading in Excel files
+library(magrittr) # For the '%<>%' pipe operator
+
+# Read-in townhomes and condo sales data
+townhomes <- read_xlsx("2017-comparable-sales-condos-townhomes.xlsx") 
+
+# Read-in single family home sales data
+single_family <- read_xlsx("2017-comparable-sales-single-family.xlsx") 
+
+# Check column names and formats
+glimpse(townhomes) 
+glimpse(single_family)
+# 'sale_price' column was coerced to numeric and special characters '$' and ',' removed
+
+# Replace spaces in column names with underscores ('_') and make names lowercase
+# the package 'magrittr' is used for the pipe operator, this is loaded with the 'tidyverse' library
+colnames(townhomes) %<>% str_replace_all("\\s", "_") %<>% tolower() 
+colnames(single_family) %<>% str_replace_all("\\s", "_") %<>% tolower()
+
+# Rename column "actual_year_built" as "year_built" for consistency between datasets
+townhomes <- townhomes %>% 
+  rename(year_built = actual_year_built) 
+
+# Add a "classifcation" column to the single_family dataset and set all values to "Single Family"
+single_family <- single_family %>% 
+  mutate(classification = "Single Family")
+
+# bind_rows() throws an error b/c 'reception' column is numeric in townhomes dataset; convert to character
+townhomes$reception <- as.character(townhomes$reception)
+
+# Combine the datasets into one
+home_sales <- bind_rows(single_family, townhomes)
+glimpse(home_sales)
+# No new columns were created during the 'bind_rows()' process, indicating all colums align
+# Remove single_family and townhomes dataframes because they are no longer needed
+rm(single_family, townhomes)
+
+# unique(home_sales$classification) reveals a "Garage Only" type. Drop this.
+home_sales <- home_sales %>% filter(classification != "Garage Only") 
+
+# Rename the column "heated area" to "square_feet" for clarity, though technically not correct
+home_sales <- home_sales %>% 
+  rename(square_feet = heated_area)
+```
+# Processing of the dataset
+* Read-in two Excel files: (1) single family home sales, and (2) condo & townhome sales
+* Replace spaces in column names with underscore and make lowercase
+* Rename some columns
+* Add `classification` column to `single_family` dataset
+    * Set all values to "Single Family"
+* Use `bind_rows()` to combine the datasets into one
+* Remove "Garage Only" observations
+
+
+# Glimpse of the dataset
+```{r glimpse}
+glimpse(home_sales)
+```
+# Locations (cities) in Garfield County
+```{r}
+unique(home_sales$location)
+```
+# Scatterplot of square_foot and sale_price
+```{r scatter_location}
+ggplot(home_sales, aes(square_feet, sale_price, color = location)) +
+  geom_point(alpha = 0.5)
+```
+
+# Scatterplot of square_foot and sale_price, faceted by location
+```{r scatter_location_facet, warning= FALSE}
+ggplot(home_sales, aes(square_feet, sale_price, color = location)) +
+  geom_point(alpha = 0.5, position = "jitter") +
+  facet_wrap(~ location)
+```
+
+# Linear model of sale price vs. square feet
+```{r lm_overallt, warning= FALSE}
+ggplot(data = home_sales, aes(x = square_feet, y = sale_price)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) #Method set to lm for the linear model
+```
+
+# Linear model facetted by location
+```{r lm_facett, warning= FALSE}
+ggplot(home_sales, aes(square_feet, sale_price, color = location)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm") +
+  facet_wrap(~ location)
+```
+
+Explore high sale price observations:
+```{r}
+home_sales %>% arrange(desc(sale_price)) %>% select(c("sale_price", "location", "classification", "bedrooms", "square_feet")) %>% head(30)
+```
+Were
