@@ -8,8 +8,11 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
 # Motivation
+
 Somebody you know is starting a home inspection business in Garfield County, Colorado. You would like to help them launch their business by providing some insights about the real estate market in the county. A dataset is publically available on the county assessor website that contains 2 years of data from summer 2014 through summer 2016.
+
 ```{r data_processing, message=FALSE, include=FALSE}
 # This chunk includes the data processing steps to wrangle and clean the data
 library(tidyverse) # For reading-in, wrangling, visualizing the data, and for pipe operator
@@ -57,7 +60,9 @@ home_sales <- home_sales %>% filter(classification != "Garage Only")
 home_sales <- home_sales %>% 
   rename(square_feet = heated_area)
 ```
+
 # Processing of the dataset
+
 * Read-in two Excel files: (1) single family home sales, and (2) condo & townhome sales
 * Replace spaces in column names with underscore and make lowercase
 * Rename some columns
@@ -71,10 +76,12 @@ home_sales <- home_sales %>%
 ```{r glimpse}
 glimpse(home_sales)
 ```
+
 # Locations (cities) in Garfield County
 ```{r}
 unique(home_sales$location)
 ```
+
 # Scatterplot of square_foot and sale_price
 ```{r scatter_location}
 ggplot(home_sales, aes(square_feet, sale_price, color = location)) +
@@ -103,8 +110,8 @@ ggplot(home_sales, aes(square_feet, sale_price, color = location)) +
   facet_wrap(~ location)
 ```
 
-Explore high sale price observations:
+# High sale price observations:
 ```{r}
 home_sales %>% arrange(desc(sale_price)) %>% select(c("sale_price", "location", "classification", "bedrooms", "square_feet")) %>% head(30)
 ```
-Were
+
