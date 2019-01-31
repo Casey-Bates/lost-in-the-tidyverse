@@ -1,0 +1,343 @@
+---
+title: "Many models with R `tidyverse` tools"
+subtitle: "Visualizing Home Sales Data, Garfield County, CO"
+author: "Casey Bates"
+date: "1/31/2019"
+output:
+  ioslides_presentation: 
+    smaller: true
+  beamer_presentation: default
+  slidy_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 6, fig.height = 3.7)
+```
+
+## Motivation
+
+Utilize `tidyverse` tools and the `broom` package to generate numerous linear models to evaluate how well sale price is explained by square footage for home sales in Garfield County, Colorado. A dataset is publically available on the [Garfield County Assessor website](https://www.garfield-county.com/assessor/comparable-sales.aspx) that contains 2 years of data from summer 2014 through summer 2016.
+
+```{r data_processing, message=FALSE, include=FALSE}
+# This chunk includes the data processing steps to wrangle and clean the data
+library(tidyverse) # For reading-in, wrangling, visualizing the data, and for pipe operator
+library(readxl) # Tidyverse package for reading in Excel files
+library(magrittr) # For the '%<>%' pipe operator
+
+# Read-in townhomes and condo sales data
+townhomes <- read_xlsx("2017-comparable-sales-condos-townhomes.xlsx") 
+
+# Read-in single family home sales data
+single_family <- read_xlsx("2017-comparable-sales-single-family.xlsx") 
+
+# Check column names and formats
+glimpse(townhomes) 
+glimpse(single_family)
+# 'sale_price' column was coerced to numeric and special characters '$' and ',' removed
+
+# Replace spaces in column names with underscores ('_') and make names lowercase
+# the package 'magrittr' is used for the pipe operator, this is loaded with the 'tidyverse' library
+colnames(townhomes) %<>% str_replace_all("\\s", "_") %<>% tolower() 
+colnames(single_family) %<>% str_replace_all("\\s", "_") %<>% tolower()
+
+# Rename column "actual_year_built" as "year_built" for consistency between datasets
+townhomes <- townhomes %>% 
+  rename(year_built = actual_year_built) 
+
+# Add a "classifcation" column to the single_family dataset and set all values to "Single Family"
+single_family <- single_family %>% 
+  mutate(classification = "Single Family")
+
+# bind_rows() throws an error b/c 'reception' column is numeric in townhomes dataset; convert to character
+townhomes$reception <- as.character(townhomes$reception)
+
+# Combine the datasets into one
+home_sales <- bind_rows(single_family, townhomes)
+glimpse(home_sales)
+# No new columns were created during the 'bind_rows()' process, indicating all colums align
+# Remove single_family and townhomes dataframes because they are no longer needed
+rm(single_family, townhomes)
+
+# unique(home_sales$classification) reveals a "Garage Only" type. Drop this.
+home_sales <- home_sales %>% filter(classification != "Garage Only") 
+
+# Rename the column "heated area" to "square_feet" for clarity, though technically not correct
+home_sales <- home_sales %>% 
+  rename(square_feet = heated_area)
+```
+
+## Outline
+
+* Part 1: Exploring the dataset with `ggplot2`
+  * Tidying wide datasets with `tidyr`
+* Part 2: Many models with `purrr` and `broom`
+
+## Part 1: Exploring the dataset with `ggplot2`
+### Processing the data
+
+* Import two Excel files: 
+
+  1. single family home sales, and 
+  1. condo & townhome sales
+* Replace spaces in column names with underscore and make lowercase
+* Rename some columns
+* Add `classification` column to `single_family` dataset
+    * Set all values to "Single Family"
+* Use `bind_rows()` to combine the datasets into one
+* Remove "Garage Only" observations
+
+
+## Glimpse of the data
+```{r glimpse}
+glimpse(home_sales)
+```
+
+## `ggplot2` package in R
+* Created by Hadley Wickham
+* Built on the "Grammar of Graphics" principles
+* Core **tidyverse** package
+* Every ggplot2 plot has 3 key components:
+  * **Data**
+  * **Aesthetic mappings** between variables and visuals 
+  * Layer(s) to describe how to render each observation (usually created with a **geom** function)
+
+## Basic scatterplot
+```{r scatter_location}
+ggplot(data = home_sales, aes(x = square_feet, y = sale_price)) +
+  geom_point()
+```
+
+## Transparency and color by location
+```{r scatter_location_color, warning= FALSE}
+ggplot(data = home_sales, aes(x = square_feet, y = sale_price, color = location)) +
+  geom_point(alpha = 0.5)
+```
+
+## Zooming into sales above $1M
+```{r scatter_zoom, warning= FALSE}
+ggplot(data = home_sales, aes(x = square_feet, y = sale_price, color = location)) +
+  geom_point(alpha = 0.5) +
+  coord_cartesian(ylim = c(1000000, 3000000))
+```
+
+## Add random noise with jitter
+```{r scatter_zoom_jitter, warning= FALSE}
+ggplot(data = home_sales, aes(x = square_feet, y = sale_price, color = location)) +
+  geom_jitter(alpha = 0.5, width = 300, height = 20000) +
+  coord_cartesian(ylim = c(1000000, 3000000))
+```
+
+```{r, include = FALSE}
+# High sale price observations
+home_sales %>% arrange(desc(sale_price)) %>% select(c("sale_price", "location", "classification", "bedrooms", "square_feet")) %>% head(30)
+```
+
+```{r, include = FALSE}
+# Remove erroneous high sale price observations
+home_sales_fix <- home_sales %>% filter(location != "RIFLE" | classification != "Townhome" | sale_price != 2200000)
+home_sales_fix %>% filter(location == "RIFLE" & classification == "Townhome") %>% arrange(desc(sale_price)) %>% head(10)
+```
+
+## Linear model: sale price vs. square ft.
+```{r lm_overall_bw, warning= FALSE}
+ggplot(data = home_sales, aes(x = square_feet, y = sale_price)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) # Method set to lm for the linear model
+```
+
+## Linear model: sale price vs. square ft.
+```{r lm_overall_fixbw, warning= FALSE}
+ggplot(data = home_sales_fix, aes(x = square_feet, y = sale_price)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) # Method set to lm for the linear model
+```
+
+## Linear model: sale price vs. square feet
+```{r lm_overall, warning= FALSE}
+ggplot(data = home_sales, aes(x = square_feet, y = sale_price, color = location)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) # Method set to lm for the linear model
+```
+
+## Linear model with errors removed
+```{r lm_overall_fix, warning= FALSE}
+ggplot(data = home_sales_fix, aes(x = square_feet, y = sale_price, color = location)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) # Method set to lm for the linear model
+```
+
+## Linear model facetted by location
+```{r lm_facet, warning= FALSE}
+ggplot(home_sales, aes(square_feet, sale_price, color = location)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ location)
+```
+
+## Linear model facetted by location
+```{r lm_facet_fix, warning= FALSE}
+ggplot(home_sales_fix, aes(square_feet, sale_price, color = location)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ location)
+```
+
+## Boxplots ordered by median sale price
+```{r boxplot_fix, warning = FALSE}
+ggplot(home_sales_fix, 
+       aes(x = reorder(location, sale_price, fun = median), 
+           y = sale_price, fill = location)) + 
+  geom_boxplot() + theme(legend.position = "bottom") +
+  labs(x = "Ordered by Median Sale Price", y = "Sale Price")
+```
+
+## Boxplots ordered by median sale price
+```{r boxplot, warning = FALSE}
+ggplot(home_sales, 
+       aes(x = reorder(location, sale_price, fun = median), 
+           y = sale_price, fill = location)) + 
+  geom_boxplot() + theme(legend.position = "bottom") +
+  labs(x = "Ordered by Median Sale Price", y = "Sale Price")
+```
+
+```{r seattle_rain, include = FALSE}
+# Import seattle rain gauge dataset
+seattle_rain <- read_csv("Observed_Monthly_Rain_Gauge_Accumulations_Oct_2002_to_May_2017.csv")
+```
+
+## Tidying wide datasets
+```{r head_rain}
+seattle_rain # Display Monthly Rain Gauge Accumulations for Seattle
+```
+
+## `gather` columns `RG01` through `RG20_25`
+```{r seattle_rain_tall}
+library(tidyr) 
+seattle_rain_tall <- seattle_rain %>% 
+  gather(RG01:RG20_25, key = rain_gauge, value = precip_inches) 
+seattle_rain_tall
+```
+
+## `gather` all columns *except* `Date`
+```{r seattle_rain_tall_fix}
+library(tidyr) 
+seattle_rain_tall <- seattle_rain %>% 
+  gather(key = rain_gauge, value = precip_inches, -Date) # Same result as before!
+seattle_rain_tall 
+```
+
+## Gathering in SQL
+```{sql eval=FALSE}
+SELECT date, 'rg01' as rain_gauge, rg01 as precip_inches FROM seattle_rain UNION 
+SELECT date, 'rg02' as rain_gauge, rg02 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg03' as rain_gauge, rg03 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg04' as rain_gauge, rg04 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg05' as rain_gauge, rg05 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg07' as rain_gauge, rg07 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg08' as rain_gauge, rg08 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg09' as rain_gauge, rg09 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg10_30' as rain_gauge, rg10_30 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg11' as rain_gauge, rg11 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg12' as rain_gauge, rg12 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg14' as rain_gauge, rg14 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg15' as rain_gauge, rg15 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg16' as rain_gauge, rg16 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg17' as rain_gauge, rg17 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg18' as rain_gauge, rg18 as precip_inches FROM seattle_rain UNION
+SELECT date, 'rg20_25' as rain_gauge, rg20_25 as precip_inches FROM seattle_rain
+ORDER BY rain_gauge, date;
+```
+
+## Part 2: Many models with `purrr` and `broom`
+
+## Linear model for Carbondale
+```{r carbondale_lm}
+carbondale <- home_sales_fix %>% 
+  filter(location == "CARBONDALE")
+model <- lm(sale_price ~ square_feet, data = carbondale)
+summary(model)
+```
+
+## Transform model into data frame with `broom`
+```{r tidy_model}
+library(broom)
+tidy(model)
+```
+
+## `bind_rows` to combine models
+```{r two_models}
+carbondale <- home_sales_fix %>% 
+  filter(location == "CARBONDALE")
+model1 <- lm(sale_price ~ square_feet, data = carbondale)
+glenwood <- home_sales_fix %>% 
+  filter(location == "GLENWOOD")
+model2 <- lm(sale_price ~ square_feet, data = glenwood)
+bind_rows(tidy(model1), tidy(model2))
+```
+
+## Step 1: `nest` by location
+```{r}
+home_sales_fix_models <- home_sales_fix %>% 
+  nest(-location)
+home_sales_fix_models
+```
+
+## Examine the data for New Castle
+```{r}
+home_sales_fix_models$data[[3]]
+```
+
+## Unnesting returns to original
+```{r}
+unnest(home_sales_fix_models)
+```
+
+## Step 2: `map()` to fit lm to each dataset
+```{r}
+library(purrr)
+home_sales_fix_models <- home_sales_fix %>%
+  nest(-location) %>% 
+  mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) 
+  # data has been passed into lm through map function
+  # dot "." is used for data in the lm call
+home_sales_fix_models
+```
+
+## Examine the model for New Castle
+```{r}
+home_sales_fix_models$models[[3]]
+```
+
+## Step 3: Use `map()` to tidy each model
+```{r}
+home_sales_fix_models <- home_sales_fix %>%
+  nest(-location) %>% 
+  mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>% 
+  mutate(tidied = map(models, tidy))
+home_sales_fix_models
+```
+
+## Examine tidy model for New Castle
+```{r}
+home_sales_fix_models$tidied[[3]]
+```
+
+## Step 4: `unnest` to tidy table of coefficients
+```{r}
+location_coeffs <- home_sales_fix %>%
+  nest(-location) %>% 
+  mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>% 
+  mutate(tidied = map(models, tidy)) %>% 
+  unnest(tidied)
+location_coeffs
+```
+
+## Location slopes
+```{r}
+location_slopes <-  location_coeffs %>% 
+  filter(term == "square_feet")%>% 
+  arrange(estimate)
+location_slopes
+```
+
+
