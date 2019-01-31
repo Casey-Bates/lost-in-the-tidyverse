@@ -223,3 +223,7 @@ SELECT date, 'rg18' as rain_gauge, rg18 as precip_inches FROM seattle_rain UNION
 SELECT date, 'rg20_25' as rain_gauge, rg20_25 as precip_inches FROM seattle_rain
 ORDER BY rain_gauge, date;
 ```
+
+## Questions?
+
+### Thank you!

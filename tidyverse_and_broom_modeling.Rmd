@@ -276,24 +276,32 @@ bind_rows(tidy(model1), tidy(model2))
 ```
 
 ## Step 1: `nest` by location
-```{r}
+```{r step_1}
 home_sales_fix_models <- home_sales_fix %>% 
   nest(-location)
 home_sales_fix_models
 ```
 
+## Alternate syntax used by Wickham
+```{r alt_nest}
+home_sales_fix %>% 
+  group_by(location) %>% 
+  nest()
+```
+
+
 ## Examine the data for New Castle
-```{r}
+```{r new_castle}
 home_sales_fix_models$data[[3]]
 ```
 
 ## Unnesting returns to original
-```{r}
+```{r unnest}
 unnest(home_sales_fix_models)
 ```
 
 ## Step 2: `map()` to fit lm to each dataset
-```{r}
+```{r step_2}
 library(purrr)
 home_sales_fix_models <- home_sales_fix %>%
   nest(-location) %>% 
@@ -304,12 +312,12 @@ home_sales_fix_models
 ```
 
 ## Examine the model for New Castle
-```{r}
+```{r new_castle_v2}
 home_sales_fix_models$models[[3]]
 ```
 
 ## Step 3: Use `map()` to tidy each model
-```{r}
+```{r step_3}
 home_sales_fix_models <- home_sales_fix %>%
   nest(-location) %>% 
   mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>% 
@@ -318,12 +326,12 @@ home_sales_fix_models
 ```
 
 ## Examine tidy model for New Castle
-```{r}
+```{r new_castle_tidy}
 home_sales_fix_models$tidied[[3]]
 ```
 
 ## Step 4: `unnest` to tidy table of coefficients
-```{r}
+```{r step_4}
 location_coeffs <- home_sales_fix %>%
   nest(-location) %>% 
   mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>% 
@@ -333,11 +341,79 @@ location_coeffs
 ```
 
 ## Location slopes
-```{r}
+```{r slopes}
 location_slopes <-  location_coeffs %>% 
   filter(term == "square_feet")%>% 
   arrange(estimate)
 location_slopes
+```
+
+## Compute residuals for Rifle, pre-fix
+```{r rifle_resids, message = FALSE}
+library(modelr) # for add_residuals function
+rifle <- filter(home_sales, location == "RIFLE")
+rifle_model <- lm(sale_price ~ square_feet, data = rifle)
+rifle %>% 
+  add_residuals(rifle_model) %>% 
+  ggplot(aes(square_feet, resid)) + # new resid column
+  geom_hline(yintercept = 0, color = "white", size = 3) +
+  geom_line() +
+  ggtitle("Remaining pattern")
+```
+
+## Compute residuals for Rifle, fixed
+```{r rifle_resids_v2}
+rifle <- filter(home_sales_fix, location == "RIFLE")
+rifle_model <- lm(sale_price ~ square_feet, data = rifle)
+rifle %>% 
+  add_residuals(rifle_model) %>% 
+  ggplot(aes(square_feet, resid)) +
+  geom_hline(yintercept = 0, color = "white", size = 3) +
+  geom_line() +
+  ggtitle("Remaining pattern")
+```
+
+## Compute residuals for all dataframes 
+```{r add_resids, message=FALSE}
+# call add_residuals() with each model-data pair:
+home_sales_fix_models <- home_sales_fix_models %>% 
+  mutate(resids = map2(data, models, add_residuals))
+home_sales_fix_models
+```
+
+## Examine residuals for New Castle
+```{r new_castle_resids}
+home_sales_fix_models$resids[[3]] %>% 
+  select(sale_price, square_feet, resid)
+```
+
+## `unnest` list of dataframes to plot resids
+```{r unnest_resids, warning= FALSE}
+resids <- unnest(home_sales_fix_models, resids)
+resids %>% 
+  ggplot(aes(square_feet, resid)) +
+  geom_line(aes(group = location, color=location), alpha = 1 / 3) +
+  geom_smooth(se = FALSE)
+```
+
+## Or facet by location
+```{r resids_facet_fix, warning= FALSE}
+resids %>% 
+  ggplot(aes(square_feet, resid, color = location)) +
+  geom_line(alpha = 1 / 3) +
+  facet_wrap(~ location)
+```
+
+## Pipe it all together!
+```{r resids facet, warning= FALSE}
+home_sales %>% # Original dataset with errors for Rifle!
+  nest(-location) %>% 
+  mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>%
+  mutate(resids = map2(data, models, add_residuals)) %>%
+  unnest(resids) %>% 
+  ggplot(aes(square_feet, resid, color = location)) +
+  geom_line(alpha = 1 / 3) +
+  facet_wrap(~ location)
 ```
 
 
