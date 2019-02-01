@@ -373,23 +373,24 @@ rifle %>%
   ggtitle("Remaining pattern")
 ```
 
-## Compute residuals for all dataframes 
+## Compute residuals 
 ```{r add_resids, message=FALSE}
-# call add_residuals() with each model-data pair:
+# Call add_residuals() with each model-data pair:
 home_sales_fix_models <- home_sales_fix_models %>% 
-  mutate(resids = map2(data, models, add_residuals))
+  # Add 'resid' column to 'data' df list with mutate 
+  mutate(data = map2(data, models, add_residuals))
 home_sales_fix_models
 ```
 
 ## Examine residuals for New Castle
 ```{r new_castle_resids}
-home_sales_fix_models$resids[[3]] %>% 
+home_sales_fix_models$data[[3]] %>% 
   select(sale_price, square_feet, resid)
 ```
 
 ## `unnest` list of dataframes to plot resids
 ```{r unnest_resids, warning= FALSE}
-resids <- unnest(home_sales_fix_models, resids)
+resids <- unnest(home_sales_fix_models, data)
 resids %>% 
   ggplot(aes(square_feet, resid)) +
   geom_line(aes(group = location, color=location), alpha = 1 / 3) +
@@ -406,11 +407,11 @@ resids %>%
 
 ## Pipe it all together!
 ```{r resids facet, warning= FALSE}
-home_sales %>% # Original dataset with errors for Rifle!
+home_sales %>% # Original dataset for Rifle with errors!
   nest(-location) %>% 
   mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>%
-  mutate(resids = map2(data, models, add_residuals)) %>%
-  unnest(resids) %>% 
+  mutate(data = map2(data, models, add_residuals)) %>%
+  unnest(data) %>% 
   ggplot(aes(square_feet, resid, color = location)) +
   geom_line(alpha = 1 / 3) +
   facet_wrap(~ location)
