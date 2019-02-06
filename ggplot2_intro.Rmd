@@ -4,10 +4,9 @@ subtitle: "Visualizing Home Sales Data, Garfield County, CO"
 author: "Casey Bates"
 date: "1/31/2019"
 output:
+  html_document:
   ioslides_presentation: 
     smaller: true
-  slidy_presentation: default
-  beamer_presentation: default
 ---
 
 ```{r setup, include=FALSE}

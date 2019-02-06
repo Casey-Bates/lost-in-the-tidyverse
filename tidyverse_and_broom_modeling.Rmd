@@ -52,17 +52,18 @@ single_family <- single_family %>%
 townhomes$reception <- as.character(townhomes$reception)
 
 # Combine the datasets into one
-home_sales <- bind_rows(single_family, townhomes)
-glimpse(home_sales)
+# This dataset contains errors which we will see later 
+home_sales_errors <- bind_rows(single_family, townhomes)
+glimpse(home_sales_errors)
 # No new columns were created during the 'bind_rows()' process, indicating all colums align
 # Remove single_family and townhomes dataframes because they are no longer needed
 rm(single_family, townhomes)
 
-# unique(home_sales$classification) reveals a "Garage Only" type. Drop this.
-home_sales <- home_sales %>% filter(classification != "Garage Only") 
+# unique(home_sales_errors$classification) reveals a "Garage Only" type. Drop this.
+home_sales_errors <- home_sales_errors %>% filter(classification != "Garage Only") 
 
 # Rename the column "heated area" to "square_feet" for clarity, though technically not correct
-home_sales <- home_sales %>% 
+home_sales_errors <- home_sales_errors %>% 
   rename(square_feet = heated_area)
 ```
 
@@ -89,7 +90,7 @@ home_sales <- home_sales %>%
 
 ## Glimpse of the data
 ```{r glimpse}
-glimpse(home_sales)
+glimpse(home_sales_errors)
 ```
 
 ## `ggplot2` package in R
@@ -103,88 +104,93 @@ glimpse(home_sales)
 
 ## Basic scatterplot
 ```{r scatter_location}
-ggplot(data = home_sales, aes(x = square_feet, y = sale_price)) +
+ggplot(data = home_sales_errors, aes(x = square_feet, y = sale_price)) +
   geom_point()
 ```
 
 ## Transparency and color by location
 ```{r scatter_location_color, warning= FALSE}
-ggplot(data = home_sales, aes(x = square_feet, y = sale_price, color = location)) +
+ggplot(data = home_sales_errors, 
+       aes(x = square_feet, y = sale_price, color = location)) +
   geom_point(alpha = 0.5)
 ```
 
 ## Zooming into sales above $1M
 ```{r scatter_zoom, warning= FALSE}
-ggplot(data = home_sales, aes(x = square_feet, y = sale_price, color = location)) +
+ggplot(data = home_sales_errors, 
+       aes(x = square_feet, y = sale_price, color = location)) +
   geom_point(alpha = 0.5) +
   coord_cartesian(ylim = c(1000000, 3000000))
 ```
 
 ## Add random noise with jitter
 ```{r scatter_zoom_jitter, warning= FALSE}
-ggplot(data = home_sales, aes(x = square_feet, y = sale_price, color = location)) +
+ggplot(data = home_sales_errors, 
+       aes(x = square_feet, y = sale_price, color = location)) +
   geom_jitter(alpha = 0.5, width = 300, height = 20000) +
   coord_cartesian(ylim = c(1000000, 3000000))
 ```
 
 ```{r, include = FALSE}
 # High sale price observations
-home_sales %>% arrange(desc(sale_price)) %>% select(c("sale_price", "location", "classification", "bedrooms", "square_feet")) %>% head(30)
+home_sales_errors %>% arrange(desc(sale_price)) %>% select(c("sale_price", "location", "classification", "bedrooms", "square_feet")) %>% head(30)
 ```
 
 ```{r, include = FALSE}
 # Remove erroneous high sale price observations
-home_sales_fix <- home_sales %>% filter(location != "RIFLE" | classification != "Townhome" | sale_price != 2200000)
-home_sales_fix %>% filter(location == "RIFLE" & classification == "Townhome") %>% arrange(desc(sale_price)) %>% head(10)
+home_sales_fixed <- home_sales_errors %>% filter(location != "RIFLE" | classification != "Townhome" | sale_price != 2200000)
+home_sales_fixed %>% filter(location == "RIFLE" & classification == "Townhome") %>% arrange(desc(sale_price)) %>% head(10)
 ```
 
 ## Linear model: sale price vs. square ft.
 ```{r lm_overall_bw, warning= FALSE}
-ggplot(data = home_sales, aes(x = square_feet, y = sale_price)) + 
+ggplot(data = home_sales_errors, aes(x = square_feet, y = sale_price)) + 
   geom_point() + 
   geom_smooth(method = "lm", se = FALSE) # Method set to lm for the linear model
 ```
 
 ## Linear model: sale price vs. square ft.
-```{r lm_overall_fixbw, warning= FALSE}
-ggplot(data = home_sales_fix, aes(x = square_feet, y = sale_price)) + 
+```{r lm_overall_fixedbw, warning= FALSE}
+ggplot(data = home_sales_fixed, aes(x = square_feet, y = sale_price)) + 
   geom_point() + 
   geom_smooth(method = "lm", se = FALSE) # Method set to lm for the linear model
 ```
 
 ## Linear model: sale price vs. square feet
 ```{r lm_overall, warning= FALSE}
-ggplot(data = home_sales, aes(x = square_feet, y = sale_price, color = location)) + 
+ggplot(data = home_sales_errors, 
+       aes(x = square_feet, y = sale_price, color = location)) + 
   geom_point() + 
   geom_smooth(method = "lm", se = FALSE) # Method set to lm for the linear model
 ```
 
 ## Linear model with errors removed
-```{r lm_overall_fix, warning= FALSE}
-ggplot(data = home_sales_fix, aes(x = square_feet, y = sale_price, color = location)) + 
+```{r lm_overall_fixed, warning= FALSE}
+ggplot(data = home_sales_fixed, 
+       aes(x = square_feet, y = sale_price, color = location)) + 
   geom_point() + 
   geom_smooth(method = "lm", se = FALSE) # Method set to lm for the linear model
 ```
 
 ## Linear model facetted by location
 ```{r lm_facet, warning= FALSE}
-ggplot(home_sales, aes(square_feet, sale_price, color = location)) +
+ggplot(home_sales_errors, aes(square_feet, sale_price, color = location)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~ location)
 ```
 
 ## Linear model facetted by location
-```{r lm_facet_fix, warning= FALSE}
-ggplot(home_sales_fix, aes(square_feet, sale_price, color = location)) +
+```{r lm_facet_fixed, warning= FALSE}
+ggplot(home_sales_fixed, aes(square_feet, sale_price, color = location)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~ location)
 ```
 
 ## Boxplots ordered by median sale price
-```{r boxplot_fix, warning = FALSE}
-ggplot(home_sales_fix, 
+```{r boxplot_fixed, warning = FALSE}
+ggplot(home_sales_fixed, 
        aes(x = reorder(location, sale_price, fun = median), 
            y = sale_price, fill = location)) + 
   geom_boxplot() + theme(legend.position = "bottom") +
@@ -193,7 +199,7 @@ ggplot(home_sales_fix,
 
 ## Boxplots ordered by median sale price
 ```{r boxplot, warning = FALSE}
-ggplot(home_sales, 
+ggplot(home_sales_errors, 
        aes(x = reorder(location, sale_price, fun = median), 
            y = sale_price, fill = location)) + 
   geom_boxplot() + theme(legend.position = "bottom") +
@@ -219,14 +225,14 @@ seattle_rain_tall
 ```
 
 ## `gather` all columns *except* `Date`
-```{r seattle_rain_tall_fix}
+```{r seattle_rain_tall_fixed}
 library(tidyr) 
 seattle_rain_tall <- seattle_rain %>% 
   gather(key = rain_gauge, value = precip_inches, -Date) # Same result as before!
 seattle_rain_tall 
 ```
 
-## Gathering in SQL
+## ...or you could do it in SQL :)
 ```{sql eval=FALSE}
 SELECT date, 'rg01' as rain_gauge, rg01 as precip_inches FROM seattle_rain UNION 
 SELECT date, 'rg02' as rain_gauge, rg02 as precip_inches FROM seattle_rain UNION
@@ -248,17 +254,47 @@ SELECT date, 'rg20_25' as rain_gauge, rg20_25 as precip_inches FROM seattle_rain
 ORDER BY rain_gauge, date;
 ```
 
-## Part 2: Many models with `purrr` and `broom`
+## Part 2: Fit many models with `purrr` and `broom`
+
+* `broom::tidy(model)`
+  * Returns 1 row for each coefficient
+  * Columns present info about variability or estimates
+
+* `broom::augment(model, data)`
+  * Returns 1 row for each row in the data
+  * Adds residuals, influence statistics
+
+* `broom::glance(model)`
+  * Returns 1 row for each model
+  * Each column represents a model summary (quality and/or complexity)
+
+## Workflow with `broom`
+`tidyr::nest()` %>% `purrr::map()` %>% `tidyr::unnest()`
+
+### Typical 4-step process
+1. `nest()` dataset by categorical variable
+1. Fit models to nested lists with `map()`
+1. Apply `broom::tidy`, `broom::augment`, and/or `broom::glance` to each nested model
+1. `unnest()` to tidy dataframe
+
+*The 4-step process can also be applied to other packages and functions such as `modelr::add_residuals`*
+
+## Why `broom`?
+**While model inputs usually require tidy inputs, such attention to detail doesn’t carry over to model outputs. Outputs such as predictions and estimated coefficients aren’t always tidy. This makes it more difficult to combine results from multiple models.** For example, in R, the default representation of model coefficients is not tidy because it does not have an explicit variable that records the variable name for each estimate, they are instead recorded as row names. In R, row names must be unique, so combining coefficients from many models (e.g., from bootstrap resamples, or subgroups) requires workarounds to avoid losing important information. **This knocks you out of the flow of analysis and makes it harder to combine the results from multiple models. I’m not currently aware of any packages that resolve this problem.**
+
+Hadley Wickham 
+
+*Emphasis added by David Robinson, author of the `broom` package, in [this post](http://varianceexplained.org/r/broom-intro/).*
 
 ## Linear model for Carbondale
 ```{r carbondale_lm}
-carbondale <- home_sales_fix %>% 
+carbondale <- home_sales_fixed %>% 
   filter(location == "CARBONDALE")
 model <- lm(sale_price ~ square_feet, data = carbondale)
 summary(model)
 ```
 
-## Transform model into data frame with `broom`
+## Transform model output into tidy data frame with `broom::tidy()`
 ```{r tidy_model}
 library(broom)
 tidy(model)
@@ -266,10 +302,10 @@ tidy(model)
 
 ## `bind_rows` to combine models
 ```{r two_models}
-carbondale <- home_sales_fix %>% 
+carbondale <- home_sales_fixed %>% 
   filter(location == "CARBONDALE")
 model1 <- lm(sale_price ~ square_feet, data = carbondale)
-glenwood <- home_sales_fix %>% 
+glenwood <- home_sales_fixed %>% 
   filter(location == "GLENWOOD")
 model2 <- lm(sale_price ~ square_feet, data = glenwood)
 bind_rows(tidy(model1), tidy(model2))
@@ -277,62 +313,61 @@ bind_rows(tidy(model1), tidy(model2))
 
 ## Step 1: `nest` by location
 ```{r step_1}
-home_sales_fix_models <- home_sales_fix %>% 
+home_sales_fixed_models <- home_sales_fixed %>% 
   nest(-location)
-home_sales_fix_models
+home_sales_fixed_models
 ```
 
 ## Alternate syntax used by Wickham
 ```{r alt_nest}
-home_sales_fix %>% 
+home_sales_fixed %>% 
   group_by(location) %>% 
   nest()
 ```
 
-
 ## Examine the data for New Castle
 ```{r new_castle}
-home_sales_fix_models$data[[3]]
+home_sales_fixed_models$data[[3]]
 ```
 
 ## Unnesting returns to original
 ```{r unnest}
-unnest(home_sales_fix_models)
+unnest(home_sales_fixed_models)
 ```
 
-## Step 2: `map()` to fit lm to each dataset
+## Step 2: `map()` to fit lm to each list
 ```{r step_2}
 library(purrr)
-home_sales_fix_models <- home_sales_fix %>%
+home_sales_fixed_models <- home_sales_fixed %>%
   nest(-location) %>% 
   mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) 
   # data has been passed into lm through map function
   # dot "." is used for data in the lm call
-home_sales_fix_models
+home_sales_fixed_models
 ```
 
 ## Examine the model for New Castle
 ```{r new_castle_v2}
-home_sales_fix_models$models[[3]]
+home_sales_fixed_models$models[[3]]
 ```
 
 ## Step 3: Use `map()` to tidy each model
 ```{r step_3}
-home_sales_fix_models <- home_sales_fix %>%
+home_sales_fixed_models <- home_sales_fixed %>%
   nest(-location) %>% 
   mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>% 
   mutate(tidied = map(models, tidy))
-home_sales_fix_models
+home_sales_fixed_models
 ```
 
 ## Examine tidy model for New Castle
 ```{r new_castle_tidy}
-home_sales_fix_models$tidied[[3]]
+home_sales_fixed_models$tidied[[3]]
 ```
 
 ## Step 4: `unnest` to tidy table of coefficients
 ```{r step_4}
-location_coeffs <- home_sales_fix %>%
+location_coeffs <- home_sales_fixed %>%
   nest(-location) %>% 
   mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>% 
   mutate(tidied = map(models, tidy)) %>% 
@@ -348,10 +383,23 @@ location_slopes <-  location_coeffs %>%
 location_slopes
 ```
 
-## Compute residuals for Rifle, pre-fix
+## Easily add `p.adjust()` column
+```{r p_adjust}
+location_slopes <-  location_coeffs %>% 
+  filter(term == "square_feet")%>% 
+  mutate(p.adjusted = p.adjust(p.value)) %>% 
+  arrange(estimate)
+location_slopes
+```
+
+## Apply this process/workflow to other packages
+
+Before we move on to `broom:augment` and `broom::glance()`, let's apply this process to `modelr::add_residuals()`.
+
+## Compute residuals for Rifle (errors)
 ```{r rifle_resids, message = FALSE}
 library(modelr) # for add_residuals function
-rifle <- filter(home_sales, location == "RIFLE")
+rifle <- filter(home_sales_errors, location == "RIFLE")
 rifle_model <- lm(sale_price ~ square_feet, data = rifle)
 rifle %>% 
   add_residuals(rifle_model) %>% 
@@ -361,9 +409,9 @@ rifle %>%
   ggtitle("Remaining pattern")
 ```
 
-## Compute residuals for Rifle, fixed
+## Compute residuals for Rifle (fixed)
 ```{r rifle_resids_v2}
-rifle <- filter(home_sales_fix, location == "RIFLE")
+rifle <- filter(home_sales_fixed, location == "RIFLE")
 rifle_model <- lm(sale_price ~ square_feet, data = rifle)
 rifle %>% 
   add_residuals(rifle_model) %>% 
@@ -373,24 +421,25 @@ rifle %>%
   ggtitle("Remaining pattern")
 ```
 
-## Compute residuals 
+## `mutate()` [add] a residuals column 
 ```{r add_resids, message=FALSE}
-# Call add_residuals() with each model-data pair:
-home_sales_fix_models <- home_sales_fix_models %>% 
-  # Add 'resid' column to 'data' df list with mutate 
-  mutate(data = map2(data, models, add_residuals))
-home_sales_fix_models
+home_sales_fixed_models <- home_sales_fixed_models %>% 
+  # Add 'resid' column to 'data' list columns with mutate 
+  # Call add_residuals() with each model-data pair
+  mutate(data = map2(data, models, add_residuals)) 
+home_sales_fixed_models
 ```
 
 ## Examine residuals for New Castle
 ```{r new_castle_resids}
-home_sales_fix_models$data[[3]] %>% 
+home_sales_fixed_models$data[[3]] %>%
+  # Select a few columns...
   select(sale_price, square_feet, resid)
 ```
 
-## `unnest` list of dataframes to plot resids
+## `unnest` list columns to plot resids
 ```{r unnest_resids, warning= FALSE}
-resids <- unnest(home_sales_fix_models, data)
+resids <- unnest(home_sales_fixed_models, data)
 resids %>% 
   ggplot(aes(square_feet, resid)) +
   geom_line(aes(group = location, color=location), alpha = 1 / 3) +
@@ -398,7 +447,7 @@ resids %>%
 ```
 
 ## Or facet by location
-```{r resids_facet_fix, warning= FALSE}
+```{r resids_facet_fixed, warning= FALSE}
 resids %>% 
   ggplot(aes(square_feet, resid, color = location)) +
   geom_line(alpha = 1 / 3) +
@@ -407,14 +456,67 @@ resids %>%
 
 ## Pipe it all together!
 ```{r resids facet, warning= FALSE}
-home_sales %>% # Original dataset for Rifle with errors!
-  nest(-location) %>% 
-  mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>%
-  mutate(data = map2(data, models, add_residuals)) %>%
-  unnest(data) %>% 
-  ggplot(aes(square_feet, resid, color = location)) +
+home_sales_errors %>% 
+  nest(-location) %>% # Step 1
+  mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>% # Step 2
+  mutate(data = map2(data, models, add_residuals)) %>% # Step 3
+  unnest(data) %>% #Step 4
+  ggplot(aes(square_feet, resid, color = location)) + #Step 5 - plot!
   geom_line(alpha = 1 / 3) +
   facet_wrap(~ location)
 ```
 
+## `broom::augment()` the results 
+```{r augment, message=FALSE}
+home_sales_fixed_models <- home_sales_fixed_models %>% 
+  mutate(augmented = map(models, broom::augment))
+home_sales_fixed_models
+```
 
+## `glimpse` at the list column `augmented`
+```{r augment_glimpse}
+augment_results <- home_sales_fixed_models %>%
+  unnest(augmented)
+glimpse(augment_results)
+```
+
+## Plot the residuals from `augmented`
+```{r augment_resids_plot}
+augment_results %>%  
+ggplot(aes(square_feet, .resid, color = location)) +
+  geom_line(alpha = 1 / 3) +
+  facet_wrap(~ location)
+```
+
+## `broom::glance()` at model summaries
+```{r glance}
+home_sales_fixed_models <- home_sales_fixed_models %>% 
+  mutate(glanced = map(models, broom::glance))
+home_sales_fixed_models
+```
+
+## `glance()` results
+```{r glance_listcols}
+glance_results <- home_sales_fixed_models %>% 
+  unnest(glanced)
+glance_results
+```
+
+## `glance()` results without list columns
+```{r glance_listcols2}
+glance_results <- home_sales_fixed_models %>% 
+  # Supress nested columns with ".drop = TRUE"
+  unnest(glanced, .drop = TRUE)
+glance_results
+```
+
+## Resources
+* [`broom` and `dplyr` vignette](https://cran.r-project.org/web/packages/broom/vignettes/broom_and_dplyr.html)
+* [`broom` intro by David Robinson](http://varianceexplained.org/r/broom-intro/)
+* [R for Data Science by Hadley Wickham](https://r4ds.had.co.nz/)
+
+## Questions?
+
+casey.bates@erm.com
+
+Thank you!
