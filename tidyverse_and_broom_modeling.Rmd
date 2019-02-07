@@ -1,6 +1,6 @@
 ---
-title: "Many models with R `tidyverse` tools"
-subtitle: "Visualizing Home Sales Data, Garfield County, CO"
+title: "Many models with `tidyverse` tools in R"
+subtitle: "Exploring Home Sales Data, Garfield County, CO"
 author: "Casey Bates"
 date: "2/7/2019"
 output:
@@ -75,6 +75,27 @@ home_sales_errors <- home_sales_errors %>%
   * `broom::tidy`
   * `broom::augment`
   * `broom::glance`
+  
+## `tidyverse` packages used
+**Importing**
+  
+* `readr`; `readxl`
+
+**Wrangle**
+  
+* `dplyr`; `tidyr`; `stringr`; `tibble`
+
+**Visualize**
+  
+* `ggplot2`
+
+**Program**
+  
+* `purrr`; `magrittr` 
+
+**Model**
+
+* `broom`; `modelr`
 
 ## Part 1: Exploring the dataset with `ggplot2`
 ### Processing the data
@@ -538,6 +559,27 @@ ggplot(home_sales_fixed, aes(square_feet, sale_price)) +
               label = paste0("r.squared =", round(r.squared, 3)))) + 
   facet_wrap(~ location)
 ```
+
+## `tidyverse` packages used
+**Importing**
+  
+* `readr`; `readxl`
+
+**Wrangle**
+  
+* `dplyr`; `tidyr`; `stringr`; `tibble`
+
+**Visualize**
+  
+* `ggplot2`
+
+**Program**
+  
+* `purrr`; `magrittr` 
+
+**Model**
+
+* `broom`; `modelr`
 
 ## Resources
 * [`broom` and `dplyr` vignette](https://cran.r-project.org/web/packages/broom/vignettes/broom_and_dplyr.html)
