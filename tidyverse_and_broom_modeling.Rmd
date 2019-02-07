@@ -2,7 +2,7 @@
 title: "Many models with R `tidyverse` tools"
 subtitle: "Visualizing Home Sales Data, Garfield County, CO"
 author: "Casey Bates"
-date: "1/31/2019"
+date: "2/7/2019"
 output:
   ioslides_presentation: 
     smaller: true
@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE, fig.width = 6, fig.height = 3.7)
 
 ## Motivation
 
-Utilize `tidyverse` tools and the `broom` package to generate numerous linear models to evaluate how well sale price is explained by square footage for home sales in Garfield County, Colorado. A dataset is publically available on the [Garfield County Assessor website](https://www.garfield-county.com/assessor/comparable-sales.aspx) that contains 2 years of data from summer 2014 through summer 2016.
+Utilize `tidyverse` tools and the `broom` package to fit and tidy numerous linear models to evaluate how well sale price is explained by square footage for home sales in Garfield County, Colorado. A dataset is publically available on the [Garfield County Assessor website](https://www.garfield-county.com/assessor/comparable-sales.aspx) that contains 2 years of data from summer 2014 through summer 2016.
 
 ```{r data_processing, message=FALSE, include=FALSE}
 # This chunk includes the data processing steps to wrangle and clean the data
@@ -69,9 +69,12 @@ home_sales_errors <- home_sales_errors %>%
 
 ## Outline
 
-* Part 1: Exploring the dataset with `ggplot2`
-  * Tidying wide datasets with `tidyr`
-* Part 2: Many models with `purrr` and `broom`
+* Part 1: Explore the dataset with `ggplot2`
+  * Tidy wide datasets with `tidyr`
+* Part 2: Fit and tidy many models with `purrr` and `broom` using:
+  * `broom::tidy`
+  * `broom::augment`
+  * `broom::glance`
 
 ## Part 1: Exploring the dataset with `ggplot2`
 ### Processing the data
@@ -174,7 +177,7 @@ ggplot(data = home_sales_fixed,
 
 ## Linear model facetted by location
 ```{r lm_facet, warning= FALSE}
-ggplot(home_sales_errors, aes(square_feet, sale_price, color = location)) +
+ggplot(home_sales_errors, aes(square_feet, sale_price)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~ location)
@@ -182,7 +185,7 @@ ggplot(home_sales_errors, aes(square_feet, sale_price, color = location)) +
 
 ## Linear model facetted by location
 ```{r lm_facet_fixed, warning= FALSE}
-ggplot(home_sales_fixed, aes(square_feet, sale_price, color = location)) +
+ggplot(home_sales_fixed, aes(square_feet, sale_price)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~ location)
@@ -254,7 +257,7 @@ SELECT date, 'rg20_25' as rain_gauge, rg20_25 as precip_inches FROM seattle_rain
 ORDER BY rain_gauge, date;
 ```
 
-## Part 2: Fit many models with `purrr` and `broom`
+## Part 2: Fit and tidy many models with `purrr` and `broom`
 
 * `broom::tidy(model)`
   * Returns 1 row for each coefficient
@@ -267,6 +270,8 @@ ORDER BY rain_gauge, date;
 * `broom::glance(model)`
   * Returns 1 row for each model
   * Each column represents a model summary (quality and/or complexity)
+  
+`broom` can be used with many built-in statistical functions and popular packages.
 
 ## Workflow with `broom`
 `tidyr::nest()` %>% `purrr::map()` %>% `tidyr::unnest()`
@@ -286,7 +291,7 @@ Hadley Wickham
 
 *Emphasis added by David Robinson, author of the `broom` package, in [this post](http://varianceexplained.org/r/broom-intro/).*
 
-## Linear model for Carbondale
+## Typical linear model output
 ```{r carbondale_lm}
 carbondale <- home_sales_fixed %>% 
   filter(location == "CARBONDALE")
@@ -295,6 +300,14 @@ summary(model)
 ```
 
 ## Transform model output into tidy data frame with `broom::tidy()`
+
+```{r tibble_options, include = FALSE}
+# Set number of significant digits for display in tibbles
+# You cannot set trailing zeros
+options(pillar.sigfig = 4)
+getOption("pillar.sigfig")
+```
+
 ```{r tidy_model}
 library(broom)
 tidy(model)
@@ -335,7 +348,7 @@ home_sales_fixed_models$data[[3]]
 unnest(home_sales_fixed_models)
 ```
 
-## Step 2: `map()` to fit lm to each list
+## Step 2: `map()` to fit lm to each data frame
 ```{r step_2}
 library(purrr)
 home_sales_fixed_models <- home_sales_fixed %>%
@@ -396,8 +409,9 @@ location_slopes
 
 Before we move on to `broom:augment` and `broom::glance()`, let's apply this process to `modelr::add_residuals()`.
 
+```{r rifle_resids, message = FALSE, include = FALSE, eval = FALSE}
+# Hidden from output, delete "include = FALSE, eval = FALSE" to include in the presentation again
 ## Compute residuals for Rifle (errors)
-```{r rifle_resids, message = FALSE}
 library(modelr) # for add_residuals function
 rifle <- filter(home_sales_errors, location == "RIFLE")
 rifle_model <- lm(sale_price ~ square_feet, data = rifle)
@@ -409,8 +423,9 @@ rifle %>%
   ggtitle("Remaining pattern")
 ```
 
+```{r rifle_resids_v2, include = FALSE, eval = FALSE}
+# Hidden from output, delete "include = FALSE, eval = FALSE" to include in the presentation again
 ## Compute residuals for Rifle (fixed)
-```{r rifle_resids_v2}
 rifle <- filter(home_sales_fixed, location == "RIFLE")
 rifle_model <- lm(sale_price ~ square_feet, data = rifle)
 rifle %>% 
@@ -423,9 +438,10 @@ rifle %>%
 
 ## `mutate()` [add] a residuals column 
 ```{r add_resids, message=FALSE}
+library(modelr)
 home_sales_fixed_models <- home_sales_fixed_models %>% 
-  # Add 'resid' column to 'data' list columns with mutate 
-  # Call add_residuals() with each model-data pair
+  # Add 'resid' column to data frames in 'data' list column with mutate 
+  # Call add_residuals() with each data-model pair
   mutate(data = map2(data, models, add_residuals)) 
 home_sales_fixed_models
 ```
@@ -437,8 +453,10 @@ home_sales_fixed_models$data[[3]] %>%
   select(sale_price, square_feet, resid)
 ```
 
+
+```{r unnest_resids, warning= FALSE, include = FALSE, eval = FALSE}
+# Hidden from output, delete "include = FALSE, eval = FALSE" to include in the presentation again
 ## `unnest` list columns to plot resids
-```{r unnest_resids, warning= FALSE}
 resids <- unnest(home_sales_fixed_models, data)
 resids %>% 
   ggplot(aes(square_feet, resid)) +
@@ -446,8 +464,9 @@ resids %>%
   geom_smooth(se = FALSE)
 ```
 
-## Or facet by location
+## Facet by location
 ```{r resids_facet_fixed, warning= FALSE}
+resids <- unnest(home_sales_fixed_models, data)
 resids %>% 
   ggplot(aes(square_feet, resid, color = location)) +
   geom_line(alpha = 1 / 3) +
@@ -456,7 +475,7 @@ resids %>%
 
 ## Pipe it all together!
 ```{r resids facet, warning= FALSE}
-home_sales_errors %>% 
+home_sales_errors %>% # Data frame with the errors
   nest(-location) %>% # Step 1
   mutate(models = map(data, ~lm(sale_price ~ square_feet, .))) %>% # Step 2
   mutate(data = map2(data, models, add_residuals)) %>% # Step 3
@@ -510,10 +529,22 @@ glance_results <- home_sales_fixed_models %>%
 glance_results
 ```
 
+## Add r.squared values to your plot
+```{r lm_facet_labeled, warning= FALSE}
+ggplot(home_sales_fixed, aes(square_feet, sale_price)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_text(data = glance_results, aes(x = 3500, y = 3100000, 
+              label = paste0("r.squared =", round(r.squared, 3)))) + 
+  facet_wrap(~ location)
+```
+
 ## Resources
 * [`broom` and `dplyr` vignette](https://cran.r-project.org/web/packages/broom/vignettes/broom_and_dplyr.html)
 * [`broom` intro by David Robinson](http://varianceexplained.org/r/broom-intro/)
+* [Exploratory Data Analysis in R by David Robinson on DataCamp](https://www.datacamp.com/courses/exploratory-data-analysis-in-r-case-study)
 * [R for Data Science by Hadley Wickham](https://r4ds.had.co.nz/)
+* [ggplot2 book by Hadley Wickham](http://had.co.nz/ggplot2/)
 
 ## Questions?
 
