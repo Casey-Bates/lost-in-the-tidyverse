@@ -1,11 +1,8 @@
 ---
-title: "Many models with `tidyverse` tools in R"
-subtitle: "Exploring Home Sales Data, Garfield County, CO"
+title: "Many Models with tidyverse tools in R"
 author: "Casey Bates"
 date: "2/7/2019"
-output:
-  ioslides_presentation: 
-    smaller: true
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -16,7 +13,8 @@ knitr::opts_chunk$set(echo = TRUE, fig.width = 6, fig.height = 3.7)
 
 Utilize `tidyverse` tools and the `broom` package to fit and tidy numerous linear models to evaluate how well sale price is explained by square footage for home sales in Garfield County, Colorado. A dataset is publically available on the [Garfield County Assessor website](https://www.garfield-county.com/assessor/comparable-sales.aspx) that contains 2 years of data from summer 2014 through summer 2016.
 
-```{r data_processing, message=FALSE, include=FALSE}
+## Import and process the datasets
+```{r data_processing, message=FALSE}
 # This chunk includes the data processing steps to wrangle and clean the data
 library(tidyverse) # For reading-in, wrangling, visualizing the data, and for pipe operator
 library(readxl) # Tidyverse package for reading in Excel files
@@ -153,13 +151,13 @@ ggplot(data = home_sales_errors,
   coord_cartesian(ylim = c(1000000, 3000000))
 ```
 
-```{r, include = FALSE}
-# High sale price observations
+## High sale price observations
+```{r high_price_obs}
 home_sales_errors %>% arrange(desc(sale_price)) %>% select(c("sale_price", "location", "classification", "bedrooms", "square_feet")) %>% head(30)
 ```
 
-```{r, include = FALSE}
-# Remove erroneous high sale price observations
+## Remove erroneous high sale price observations
+```{r remove_errors}
 home_sales_fixed <- home_sales_errors %>% filter(location != "RIFLE" | classification != "Townhome" | sale_price != 2200000)
 home_sales_fixed %>% filter(location == "RIFLE" & classification == "Townhome") %>% arrange(desc(sale_price)) %>% head(10)
 ```
@@ -228,8 +226,8 @@ ggplot(home_sales_errors,
   labs(x = "Ordered by Median Sale Price", y = "Sale Price")
 ```
 
-```{r seattle_rain, include = FALSE}
-# Import seattle rain gauge dataset
+## Import seattle rain gauge dataset
+```{r seattle_rain}
 seattle_rain <- read_csv("Observed_Monthly_Rain_Gauge_Accumulations_Oct_2002_to_May_2017.csv")
 ```
 
@@ -318,15 +316,14 @@ model <- lm(sale_price ~ square_feet, data = carbondale)
 summary(model)
 ```
 
-## Transform model output into tidy data frame with `broom::tidy()`
-
-```{r tibble_options, include = FALSE}
-# Set number of significant digits for display in tibbles
+## Set number of significant digits for display in tibbles
+```{r tibble_options}
 # You cannot set trailing zeros
 options(pillar.sigfig = 4)
 getOption("pillar.sigfig")
 ```
 
+## Transform model output into tidy data frame with `broom::tidy()`
 ```{r tidy_model}
 library(broom)
 tidy(model)
